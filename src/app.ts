@@ -1,28 +1,27 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './swagger';
 
-dotenv.config();
+import indexRouter from './routes/index';
 
 const app = express();
-const PORT = process.env.PORT || 8080;
 
-app.use(cors());
+const corsOptions = {
+  origin: ['https://vibe-guys.vercel.app', 'http://localhost:3003'],
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.get('/health', (req: Request, res: Response) => {
-  res.status(200).json({
-    status: 'success',
-    message: '✅ 헬스체크 통과! 서버가 정상적으로 실행 중입니다.',
-    timestamp: new Date().toISOString(),
-  });
-});
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-app.use((req: Request, res: Response) => {
+app.use('/', indexRouter);
+
+app.use((req, res) => {
   res.status(404).json({ error: 'Not Found' });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server is running on http://localhost:${PORT}`);
-});
+export default app;
