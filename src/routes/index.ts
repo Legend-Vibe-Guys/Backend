@@ -1,9 +1,8 @@
-import express from 'express';
+import express, { Router, Request, Response } from 'express';
 import { formatUptime } from '../utils/time';
+const router: Router = express.Router();
 
-const router = express.Router();
-
-router.get('/healthy', (req, res) => {
+router.get('/healthy', (req: Request, res: Response) => {
   res.status(200).json({
     status: 'ok',
     uptime: formatUptime(process.uptime()),
