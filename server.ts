@@ -1,9 +1,10 @@
 import dotenv from 'dotenv';
+import './src/lib/firebase';
 import app from './src/app';
 
 dotenv.config();
 
-const port = process.env.PORT;
+const port = process.env.PORT || 3001;
 
 app.listen(port, () => {
   console.log(`🚀 서버 가동 중: http://localhost:${port}`);
