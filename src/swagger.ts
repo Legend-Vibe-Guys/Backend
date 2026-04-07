@@ -8,12 +8,6 @@ const options: swaggerJSDoc.Options = {
       version: '1.0.0',
       description: '백엔드 서버 API 명세서입니다.',
     },
-    servers: [
-      {
-        url: 'http://localhost:3001',
-        description: '로컬 개발 서버',
-      },
-    ],
     components: {
       securitySchemes: {
         bearerAuth: {
@@ -37,7 +31,8 @@ const options: swaggerJSDoc.Options = {
       '/auth/signup': {
         post: {
           summary: '회원가입 및 정보 저장',
-          description: '사용자 정보와 아이 정보를 각각 users, students 컬렉션에 저장합니다.',
+          description:
+            '사용자 정보와 아이 정보를 각각 users, students 컬렉션에 저장합니다. UID는 인증 토큰에서 자동으로 추출하므로 본문에 포함하지 않습니다.',
           tags: ['Auth'],
           requestBody: {
             required: true,
@@ -46,17 +41,15 @@ const options: swaggerJSDoc.Options = {
                 schema: {
                   type: 'object',
                   properties: {
-                    uid: { type: 'string', example: 'user_1234' },
                     name: { type: 'string', example: '본인 이름' },
                     role: { type: 'string', enum: ['teacher', 'parent'], example: 'parent' },
-                    email: { type: 'string', example: 'example@email.com' },
                     phone: { type: 'string', example: '010-0000-0000' },
                     studentInfo: {
                       type: 'object',
                       properties: {
-                        name: { type: 'string', example: '아이 이름' },
+                        kidsName: { type: 'string', example: '아이 이름' },
                         birthDate: { type: 'string', example: '2020-01-01' },
-                        allergy: { type: 'array', items: { type: 'string' }, example: ['우유'] },
+                        teacherName: { type: 'string', example: '김선생님' },
                       },
                     },
                   },
@@ -65,8 +58,8 @@ const options: swaggerJSDoc.Options = {
             },
           },
           responses: {
-            200: {
-              description: '회원가입 성공',
+            201: {
+              description: '회원가입 성공 (데이터 생성됨)',
               content: {
                 'application/json': {
                   schema: {
@@ -79,13 +72,17 @@ const options: swaggerJSDoc.Options = {
                 },
               },
             },
+            400: { description: '잘못된 요청 (필수값 누락 또는 유효성 검사 실패)' },
+            409: { description: '이미 가입된 사용자' },
+            500: { description: '서버 내부 오류' },
           },
         },
       },
       '/auth/login': {
         post: {
           summary: '로그인 및 유저 정보 조회',
-          description: 'Firebase 토큰을 검증하여 가입된 유저 정보를 반환합니다.',
+          description:
+            'Firebase 토큰을 검증하여 가입된 유저 정보를 반환합니다. 역할(role)이 teacher인 경우 담당 학생 목록(kids)이 포함됩니다.',
           tags: ['Auth'],
           security: [{ bearerAuth: [] }],
           responses: {
@@ -97,19 +94,45 @@ const options: swaggerJSDoc.Options = {
                     type: 'object',
                     properties: {
                       success: { type: 'boolean' },
-                      user: { type: 'object' },
+                      message: { type: 'string' },
+                      user: {
+                        type: 'object',
+                        properties: {
+                          uid: { type: 'string' },
+                          name: { type: 'string' },
+                          role: { type: 'string' },
+                          phone: { type: 'string' },
+                          createdAt: { type: 'string' },
+                          kids: {
+                            type: 'array',
+                            description: '선생님(teacher) 역할일 때만 반환되는 학생 목록',
+                            items: {
+                              type: 'object',
+                              properties: {
+                                id: { type: 'string', description: '학생 문서 ID' },
+                                kidsName: { type: 'string' },
+                                birthDate: { type: 'string' },
+                                teacherName: { type: 'string' },
+                                parentUid: { type: 'string' },
+                              },
+                            },
+                          },
+                        },
+                      },
                     },
                   },
                 },
               },
             },
-            404: { description: '가입되지 않은 유저' },
+            401: { description: '유효하지 않거나 만료된 토큰' },
+            404: { description: '가입되지 않은 유저 (회원가입 필요)' },
+            500: { description: '서버 내부 오류' },
           },
         },
       },
     },
   },
-  apis: ['./src/routes/index.ts'],
+  apis: ['./src/routes/*.ts'],
 };
 
 export const swaggerSpec = swaggerJSDoc(options);
