@@ -13,7 +13,11 @@ try {
       serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
     }
   } else {
-    serviceAccount = require('../config/firebase-service-account.json');
+    try {
+      serviceAccount = require('../config/firebase-service-account.json');
+    } catch (e) {
+      console.warn('⚠️ 서비스 계정 정보가 없습니다. 환경 변수를 확인하세요.');
+    }
   }
 } catch (error) {
   console.error('❌ Firebase 서비스 계정 설정 오류:', error);
@@ -23,7 +27,7 @@ if (!admin.apps.length && serviceAccount) {
   try {
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
-      projectId: process.env.FIREBASE_PROJECT_ID,
+      projectId: process.env.FIREBASE_PROJECT_ID || serviceAccount.project_id,
     });
     console.log('🔥 Firebase Admin SDK 초기화 완료');
   } catch (initError) {
