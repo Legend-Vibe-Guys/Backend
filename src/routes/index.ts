@@ -1,5 +1,8 @@
 import express, { Router, Request, Response } from 'express';
 import { formatUptime } from '../utils/time';
+import authRouter from './auth';
+import reportRouter from './report';
+
 const router: Router = express.Router();
 
 router.get('/healthy', (req: Request, res: Response) => {
@@ -8,5 +11,8 @@ router.get('/healthy', (req: Request, res: Response) => {
     uptime: formatUptime(process.uptime()),
   });
 });
+
+router.use('/auth', authRouter);
+router.use('/report', reportRouter);
 
 export default router;
