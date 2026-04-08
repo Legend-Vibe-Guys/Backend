@@ -22,4 +22,10 @@ router.post(
   authController.signup,
 );
 
+router.post(
+  '/login',
+  verifyToken,
+  authController.login,
+);
+
 export default router;
