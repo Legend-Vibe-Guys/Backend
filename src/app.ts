@@ -6,6 +6,8 @@ import { swaggerSpec } from './swagger';
 
 import indexRouter from './routes/index';
 import authRouter from './routes/auth';
+import uploadRouter from './routes/upload';
+import path from 'path';
 import { errorHandler } from './middlewares/errorHandler';
 
 dotenv.config();
@@ -27,6 +29,8 @@ app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use('/', indexRouter);
 app.use('/auth', authRouter);
+app.use('/upload', uploadRouter);
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Not Found' });

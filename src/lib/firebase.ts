@@ -29,6 +29,7 @@ if (!admin.apps.length && serviceAccount) {
       credential: admin.credential.cert(serviceAccount),
       projectId: process.env.FIREBASE_PROJECT_ID || serviceAccount.project_id,
     });
+    admin.firestore().settings({ ignoreUndefinedProperties: true });
     console.log('🔥 Firebase Admin SDK 초기화 완료');
   } catch (initError) {
     console.error('❌ Firebase Admin SDK 초기화 실패:', initError);
