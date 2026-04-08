@@ -15,29 +15,22 @@ import * as reportService from '../services/reportService';
  *             type: object
  *             required:
  *               - childName
- *               - mood
- *               - lunch
- *               - nap
- *               - keywords
+ *               - commonActivities
+ *               - length
  *             properties:
  *               childName:
  *                 type: string
  *                 example: "지훈"
- *               mood:
+ *               commonActivities:
  *                 type: string
- *                 example: "매우 좋음"
- *               lunch:
- *                 type: string
- *                 example: "조금 남김"
- *               nap:
- *                 type: string
- *                 example: "1시간"
- *               keywords:
- *                 type: string
- *                 example: "색종이 접기, 개구리 만들기, 친구에게 양보함"
+ *                 example: "오전에 놀이터에서 모래놀이를 하고 오후에는 그림책 읽기를 했어요."
  *               specialNote:
  *                 type: string
- *                 example: "기침 조금 함"
+ *                 example: "점심시간에 밥을 남김없이 다 먹었어요."
+ *               length:
+ *                 type: string
+ *                 enum: ['short', 'long']
+ *                 example: "short"
  *     responses:
  *       200:
  *         description: 생성 성공
@@ -57,7 +50,7 @@ export const generateReport = async (req: Request, res: Response): Promise<void>
   try {
     const input: reportService.ReportInput = req.body;
 
-    if (!input.childName || !input.mood || !input.lunch || !input.nap || !input.keywords) {
+    if (!input.childName || !input.commonActivities || !input.length) {
       res.status(400).json({ 
         success: false, 
         message: '필수 입력 정보가 누락되었습니다.' 
@@ -65,7 +58,74 @@ export const generateReport = async (req: Request, res: Response): Promise<void>
       return;
     }
 
+    if (input.length !== 'short' && input.length !== 'long') {
+      res.status(400).json({ 
+        success: false, 
+        message: 'length 속성은 "short" 또는 "long"이어야 합니다.' 
+      });
+      return;
+    }
+
     const report = await reportService.generateDailyReport(input);
+
+    res.status(200).json({
+      success: true,
+      report
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+/**
+ * @swagger
+ * /report/common/generate:
+ *   post:
+ *     summary: 공통 알림장 생성
+ *     tags: [Report]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - content
+ *             properties:
+ *               content:
+ *                 type: string
+ *                 example: "내일은 외부 체험학습이 있는 날입니다. 물병과 모자를 꼭 챙겨주세요."
+ *     responses:
+ *       200:
+ *         description: 생성 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 report:
+ *                   type: string
+ *       500:
+ *         description: 서버 오류
+ */
+export const generateCommonReport = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const input: reportService.CommonReportInput = req.body;
+
+    if (!input.content) {
+      res.status(400).json({ 
+        success: false, 
+        message: '공통 전달 내용(content)이 누락되었습니다.' 
+      });
+      return;
+    }
+
+    const report = await reportService.generateCommonReport(input);
 
     res.status(200).json({
       success: true,
