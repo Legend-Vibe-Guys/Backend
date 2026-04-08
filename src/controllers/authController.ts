@@ -2,6 +2,44 @@ import { Request, Response, NextFunction } from 'express';
 import { db } from '../lib/firebase';
 import { StatusCodes } from 'http-status-codes';
 
+/**
+ * @swagger
+ * /auth/signup:
+ *   post:
+ *     summary: 회원가입
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, role]
+ *             properties:
+ *               name: { type: 'string' }
+ *               role: { type: 'string', enum: [teacher, parent] }
+ *               phone: { type: 'string' }
+ *               studentInfo:
+ *                 type: object
+ *                 properties:
+ *                   kidsName: { type: 'string' }
+ *                   birthDate: { type: 'string' }
+ *                   teacherName: { type: 'string' }
+ *     responses:
+ *       201:
+ *         description: 가입 성공
+ * /auth/login:
+ *   post:
+ *     summary: 로그인 및 사용자 정보 조회
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 로그인 성공
+ */
 export const signup = async (req: Request, res: Response, next: NextFunction) => {
   const authUser = (req as any).user;
   const { name, role, phone, studentInfo } = req.body;
