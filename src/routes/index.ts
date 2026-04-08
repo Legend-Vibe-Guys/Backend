@@ -4,6 +4,7 @@ import authRouter from './auth';
 import reportRouter from './report';
 import studentRouter from './student';
 import noticeRouter from './notice';
+import scheduleRouter from './schedule';
 
 const router: Router = express.Router();
 
@@ -18,5 +19,6 @@ router.use('/auth', authRouter);
 router.use('/report', reportRouter);
 router.use('/students', studentRouter);
 router.use('/notices', noticeRouter);
+router.use('/schedules', scheduleRouter);
 
 export default router;
