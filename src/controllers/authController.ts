@@ -53,7 +53,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     if (!userDoc.exists) {
       return res.status(StatusCodes.NOT_FOUND).json({
         success: false,
-        message: '가입되지 않은 사용자입니다. 회원가입을 먼저 진행해주세요.',
+        message: `가입되지 않은 사용자입니다 (UID: ${authUser.uid}). 회원가입을 먼저 진행해주세요.`,
       });
     }
 
