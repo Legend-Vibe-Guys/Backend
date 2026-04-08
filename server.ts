@@ -1,8 +1,7 @@
 import dotenv from 'dotenv';
+dotenv.config();
 import './src/lib/firebase';
 import app from './src/app';
-
-dotenv.config();
 
 const port = process.env.PORT || 3001;
 
