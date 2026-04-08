@@ -35,6 +35,60 @@ import { StatusCodes } from 'http-status-codes';
  *     responses:
  *       201:
  *         description: 생성 성공
+ * /notices/{id}:
+ *   patch:
+ *     summary: 알림장 수정
+ *     tags: [Notices]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title: { type: 'string' }
+ *               content: { type: 'string' }
+ *               photoUrl: { type: 'string' }
+ *     responses:
+ *       200:
+ *         description: 수정 성공
+ *   delete:
+ *     summary: 알림장 삭제
+ *     tags: [Notices]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: 삭제 성공
+ * /notices/{id}/read:
+ *   patch:
+ *     summary: 알림장 읽음 처리
+ *     tags: [Notices]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: 읽음 처리 성공
  */
 export const createNotice = async (req: Request, res: Response, next: NextFunction) => {
   try {

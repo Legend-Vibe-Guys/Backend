@@ -26,6 +26,102 @@ import { StatusCodes } from 'http-status-codes';
  *                   type: array
  *                   items:
  *                     type: object
+ * /students/{id}/memos:
+ *   get:
+ *     summary: 원아 개별 메모(특이사항) 조회
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: 조회 성공
+ * /students/{id}/traits:
+ *   patch:
+ *     summary: 원아 특징(키워드) 수정
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               traits:
+ *                 type: array
+ *                 items: { type: 'string' }
+ *     responses:
+ *       200:
+ *         description: 수정 성공
+ * /students/{id}/memos/{date}:
+ *   post:
+ *     summary: 원아 일일 요약 메모 저장
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: date
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               content: { type: 'string' }
+ *     responses:
+ *       200:
+ *         description: 저장 성공
+ * /students/{id}:
+ *   patch:
+ *     summary: 원아 기본 정보 수정
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name: { type: 'string' }
+ *               profileImageUrl: { type: 'string' }
+ *               profileEmoji: { type: 'string' }
+ *               className: { type: 'string' }
+ *               allergies: { type: 'array', items: { type: 'string' } }
+ *               medicationRequest: { type: 'string' }
+ *     responses:
+ *       200:
+ *         description: 수정 성공
  */
 export const getStudents = async (req: Request, res: Response, next: NextFunction) => {
   try {
