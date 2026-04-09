@@ -10,8 +10,6 @@ import uploadRouter from './routes/upload';
 import path from 'path';
 import { errorHandler } from './middlewares/errorHandler';
 
-dotenv.config();
-
 const app: Express = express();
 
 const allowedOrigins = [process.env.DEPLOY_URL, process.env.LOCAL_URL].filter(Boolean) as string[];
