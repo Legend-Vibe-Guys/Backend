@@ -39,6 +39,28 @@ export const getSchedulesByAuthor = async (authorUid: string, date?: string) => 
   });
 };
 
+export const getSchedulesByAuthors = async (authorUids: string[], date?: string) => {
+  if (authorUids.length === 0) return [];
+  
+  // Firestore 'in' query supports up to 10 items. 
+  // For larger scale, this would need chunking, but for a parent's children it's fine.
+  let query = db.collection('schedules').where('authorUid', 'in', authorUids);
+  
+  if (date) {
+    query = query.where('date', '==', date);
+  }
+
+  const snapshot = await query.get();
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      createdAt: data.createdAt?.toDate?.() ? data.createdAt.toDate().toISOString() : data.createdAt,
+    };
+  });
+};
+
 export const getAllSchedules = async (date?: string) => {
   let query: any = db.collection('schedules');
   
