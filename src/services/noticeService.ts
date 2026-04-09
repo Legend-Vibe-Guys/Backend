@@ -9,6 +9,7 @@ export interface NoticeInput {
   date: string;
   isRead: boolean;
   photoUrl?: string;
+  photoUrls?: string[];
   cushionLevel?: string;
   createdAt?: string;
 }
