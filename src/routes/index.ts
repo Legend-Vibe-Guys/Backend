@@ -5,6 +5,7 @@ import reportRouter from './report';
 import studentRouter from './student';
 import noticeRouter from './notice';
 import scheduleRouter from './schedule';
+import observationRouter from './observation';
 
 const router: Router = express.Router();
 
@@ -20,5 +21,6 @@ router.use('/report', reportRouter);
 router.use('/students', studentRouter);
 router.use('/notices', noticeRouter);
 router.use('/schedules', scheduleRouter);
+router.use('/observations', observationRouter);
 
 export default router;
