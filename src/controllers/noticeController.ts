@@ -93,7 +93,7 @@ import { StatusCodes } from 'http-status-codes';
 export const createNotice = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authUser = (req as any).user;
-    const { type, childId, title, content, date, isRead, photoUrl } = req.body;
+    const { type, childId, title, content, date, isRead, photoUrl, photoUrls } = req.body;
     
     if (!type || !title || !content || !date) {
       return res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: '필수 값이 누락되었습니다.' });
@@ -107,7 +107,8 @@ export const createNotice = async (req: Request, res: Response, next: NextFuncti
       content,
       date,
       isRead: isRead || false,
-      photoUrl
+      photoUrl,
+      photoUrls
     };
 
     const created = await noticeService.createNotice(notice);
