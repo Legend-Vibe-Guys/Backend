@@ -9,6 +9,7 @@ export interface NoticeInput {
   date: string;
   isRead: boolean;
   photoUrl?: string;
+  photoUrls?: string[];
   cushionLevel?: string;
   createdAt?: string;
 }
@@ -41,7 +42,14 @@ export const getNoticesByChild = async (childId: string) => {
   const snapshot = await db.collection('notices')
     .where('childId', '==', childId)
     .get();
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return { 
+      id: doc.id, 
+      ...data,
+      createdAt: data.createdAt?.toDate?.() ? data.createdAt.toDate().toISOString() : data.createdAt 
+    };
+  });
 };
 
 export const getNoticesByChildIds = async (childIds: string[]) => {
@@ -49,14 +57,28 @@ export const getNoticesByChildIds = async (childIds: string[]) => {
   const snapshot = await db.collection('notices')
     .where('childId', 'in', childIds)
     .get();
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return { 
+      id: doc.id, 
+      ...data,
+      createdAt: data.createdAt?.toDate?.() ? data.createdAt.toDate().toISOString() : data.createdAt 
+    };
+  });
 };
 
 export const getCommonNotices = async () => {
   const snapshot = await db.collection('notices')
     .where('type', '==', 'common')
     .get();
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return { 
+      id: doc.id, 
+      ...data,
+      createdAt: data.createdAt?.toDate?.() ? data.createdAt.toDate().toISOString() : data.createdAt 
+    };
+  });
 };
 
 export const markAsRead = async (id: string) => {
