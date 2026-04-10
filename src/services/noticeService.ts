@@ -88,6 +88,23 @@ export const getCommonNotices = async (authorUids?: string[]) => {
   });
 };
 
+export const getCommonNoticesByAuthors = async (authorUids: string[]) => {
+  if (authorUids.length === 0) return [];
+  const snapshot = await db.collection('notices')
+    .where('type', '==', 'common')
+    .where('authorUid', 'in', authorUids)
+    .get();
+    
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return { 
+      id: doc.id, 
+      ...data,
+      createdAt: data.createdAt?.toDate?.() ? data.createdAt.toDate().toISOString() : data.createdAt 
+    };
+  });
+};
+
 export const markAsRead = async (id: string) => {
   await db.collection('notices').doc(id).update({ isRead: true });
 };

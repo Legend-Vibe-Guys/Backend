@@ -4,6 +4,27 @@ import { StatusCodes } from 'http-status-codes';
 
 /**
  * @swagger
+ * /auth/teachers:
+ *   get:
+ *     summary: 등록된 모든 선생님 목록 조회
+ *     tags: [Auth]
+ *     responses:
+ *       200:
+ *         description: 목록 반환 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: 'boolean' }
+ *                 teachers:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       uid: { type: 'string' }
+ *                       name: { type: 'string' }
+ *                       className: { type: 'string' }
  * /auth/signup:
  *   post:
  *     summary: 회원가입
@@ -21,6 +42,7 @@ import { StatusCodes } from 'http-status-codes';
  *               name: { type: 'string' }
  *               role: { type: 'string', enum: [teacher, parent] }
  *               phone: { type: 'string' }
+ *               className: { type: 'string', description: '선생님인 경우 반 이름' }
  *               studentInfo:
  *                 type: object
  *                 properties:
@@ -42,7 +64,7 @@ import { StatusCodes } from 'http-status-codes';
  */
 export const signup = async (req: Request, res: Response, next: NextFunction) => {
   const authUser = (req as any).user;
-  const { name, role, phone, studentInfo } = req.body;
+  const { name, role, phone, studentInfo, className } = req.body;
 
   try {
     const existingUser = await db.collection('users').doc(authUser.uid).get();
@@ -56,13 +78,19 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
     const batch = db.batch();
 
     const userRef = db.collection('users').doc(authUser.uid);
-    batch.set(userRef, {
+    const userData: any = {
       uid: authUser.uid,
       name,
       role,
       phone: phone,
       createdAt: new Date(),
-    });
+    };
+
+    if (role === 'teacher' && className) {
+      userData.className = className;
+    }
+
+    batch.set(userRef, userData);
 
     if (role === 'parent' && studentInfo) {
       const studentRef = db.collection('students').doc();
@@ -72,11 +100,33 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
         teacherName: studentInfo.teacherName,
         parentUid: authUser.uid,
         createdAt: new Date(),
+        className: '', // 초기화
       });
     }
 
     await batch.commit();
     res.status(StatusCodes.CREATED).json({ success: true, message: '회원가입 완료' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getTeachers = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const snapshot = await db.collection('users').where('role', '==', 'teacher').get();
+    const teachers = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        uid: doc.id,
+        name: data.name,
+        className: data.className || ''
+      };
+    });
+
+    res.status(StatusCodes.OK).json({
+      success: true,
+      teachers
+    });
   } catch (error) {
     next(error);
   }
