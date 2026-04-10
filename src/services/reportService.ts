@@ -1,4 +1,5 @@
 import { noticeModel } from '../lib/gemini';
+import { db } from '../lib/firebase';
 
 export interface ReportInput {
   childName: string;
@@ -87,4 +88,51 @@ ${input.content}
     console.error('Gemini API Error:', error);
     throw new Error('공통 알림장 생성 중 오류가 발생했습니다.');
   }
+};
+
+// --- Monthly Report Persistence ---
+
+export interface MonthlyReportData {
+  id?: string;
+  childId: string;
+  childName: string;
+  reportMonth: string;
+  details: any;
+  teacherId?: string;
+  createdAt?: string;
+}
+
+export const saveMonthlyReport = async (data: MonthlyReportData): Promise<string> => {
+  const { id, ...reportData } = data;
+  
+  if (id && !id.startsWith('mr-') && !id.startsWith('rep-')) {
+    // 기존 데이터 업데이트
+    await db.collection('monthlyReports').doc(id).set({
+      ...reportData,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+    return id;
+  } else {
+    // 신규 데이터 생성
+    const docRef = await db.collection('monthlyReports').add({
+      ...reportData,
+      createdAt: new Date().toISOString()
+    });
+    return docRef.id;
+  }
+};
+
+export const getMonthlyReportsByChild = async (childId: string) => {
+  const snapshot = await db.collection('monthlyReports')
+    .where('childId', '==', childId)
+    .get();
+
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+};
+
+export const deleteMonthlyReport = async (id: string) => {
+  await db.collection('monthlyReports').doc(id).delete();
 };
