@@ -138,3 +138,47 @@ export const generateCommonReport = async (req: Request, res: Response): Promise
     });
   }
 };
+
+// --- Monthly Report Controllers ---
+
+export const saveMonthlyReport = async (req: Request, res: Response) => {
+  try {
+    const authUser = (req as any).user;
+    const data = req.body;
+    
+    // 현재 접속한 교사 ID 추가
+    data.teacherId = authUser.uid;
+
+    const id = await reportService.saveMonthlyReport(data);
+    res.status(200).json({
+      success: true,
+      id,
+      message: '종합 평가가 저장되었습니다.'
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getMonthlyReports = async (req: Request, res: Response) => {
+  try {
+    const { childId } = req.query;
+    if (!childId) {
+      return res.status(400).json({ success: false, message: 'childId가 필요합니다.' });
+    }
+    const reports = await reportService.getMonthlyReportsByChild(childId as string);
+    res.status(200).json({ success: true, reports });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const deleteMonthlyReport = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await reportService.deleteMonthlyReport(id as string);
+    res.status(200).json({ success: true, message: '종합 평가가 삭제되었습니다.' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
