@@ -13,8 +13,9 @@ const genAI = new GoogleGenerativeAI(apiKey || "");
 
 // gemini-2.5-flash 모델 사용
 // "gemini-3-flash-preview"
+// "gemini-3.1-flash-lite-preview"
 export const geminiModel = genAI.getGenerativeModel({ 
-  model: "gemini-2.5-flash",
+  model: "gemini-3.1-flash-lite-preview",
   generationConfig: {
     temperature: 0.4,
     topP: 0.9,

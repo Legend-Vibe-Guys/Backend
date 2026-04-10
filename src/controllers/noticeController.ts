@@ -129,17 +129,27 @@ export const getNotices = async (req: Request, res: Response, next: NextFunction
       notices = await noticeService.getNoticesByAuthor(authUser.uid);
     } else if (userData?.role === 'parent') {
       // 1. 부모의 아이들 목록 가져오기
-      const students = await db.collection('students').where('parentUid', '==', authUser.uid).get();
-      const childIds = students.docs.map(doc => doc.id);
+      const studentsSnapshot = await db.collection('students').where('parentUid', '==', authUser.uid).get();
+      const childIds = studentsSnapshot.docs.map(doc => doc.id);
+      const teacherNames = [...new Set(studentsSnapshot.docs.map(doc => doc.data().teacherName).filter(Boolean))];
+      
+      let teacherUids: string[] = [];
+      if (teacherNames.length > 0) {
+        const teachersSnapshot = await db.collection('users')
+          .where('role', '==', 'teacher')
+          .where('name', 'in', teacherNames)
+          .get();
+        teacherUids = teachersSnapshot.docs.map(doc => doc.id);
+      }
       
       if (childIds.length > 0) {
-        // 2. 해당 아이들의 개별 알림장 + 전체 공통 알림장 가져오기
+        // 2. 해당 아이들의 개별 알림장 + 내 아이들의 선생님들이 쓴 공통 알림장 가져오기
         const individualNotices = await noticeService.getNoticesByChildIds(childIds);
-        const commonNotices = await noticeService.getCommonNotices();
+        const commonNotices = await noticeService.getCommonNotices(teacherUids);
         notices = [...individualNotices, ...commonNotices];
       } else {
-        // 아이 정보가 없으면 공통 알림장만
-        notices = await noticeService.getCommonNotices();
+        // 아이 정보가 없으면 아무 알림장도 가져오지 않음 (공통 알림장도 선생님 매칭 필요)
+        notices = [];
       }
     }
     res.status(StatusCodes.OK).json({ success: true, notices });
