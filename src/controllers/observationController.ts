@@ -112,3 +112,33 @@ export const transcribeSTT = async (req: Request, res: Response, next: NextFunct
     next(error);
   }
 };
+
+export const deleteObservation = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ success: false, error: '삭제할 ID가 필요합니다.' });
+    }
+
+    await observationService.deleteObservation(id as string);
+    res.status(StatusCodes.OK).json({ success: true, message: '관찰일지가 삭제되었습니다.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateObservation = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+    
+    if (!id) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ success: false, error: '수정할 ID가 필요합니다.' });
+    }
+
+    await observationService.updateObservation(id as string, updateData);
+    res.status(StatusCodes.OK).json({ success: true, message: '관찰일지가 수정되었습니다.' });
+  } catch (error) {
+    next(error);
+  }
+};

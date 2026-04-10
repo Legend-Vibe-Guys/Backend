@@ -6,6 +6,8 @@ import { validateRequest } from '../middlewares/validator'; // 추가
 
 const router: Router = express.Router();
 
+router.get('/teachers', authController.getTeachers);
+
 router.post(
   '/signup',
   verifyToken,

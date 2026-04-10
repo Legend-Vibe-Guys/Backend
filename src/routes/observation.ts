@@ -118,4 +118,51 @@ router.post('/', observationController.createObservation);
  */
 router.get('/', observationController.getObservations);
 
+/**
+ * @swagger
+ * /observations/{id}:
+ *   delete:
+ *     summary: 관찰일지 삭제
+ *     tags: [Observations]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: 삭제 성공
+ */
+router.delete('/:id', observationController.deleteObservation);
+
+/**
+ * @swagger
+ * /observations/{id}:
+ *   patch:
+ *     summary: 관찰일지 수정
+ *     tags: [Observations]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               observationContent:
+ *                 type: string
+ *               observationEvaluation:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 수정 성공
+ */
+router.patch('/:id', observationController.updateObservation);
+
 export default router;

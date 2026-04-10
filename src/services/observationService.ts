@@ -108,3 +108,14 @@ export const getObservations = async (filters: { childId?: string; category?: st
     new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
   );
 };
+
+export const deleteObservation = async (id: string): Promise<void> => {
+  await db.collection('observations').doc(id).delete();
+};
+
+export const updateObservation = async (id: string, data: Partial<ObservationRecord>): Promise<void> => {
+  await db.collection('observations').doc(id).update({
+    ...data,
+    updatedAt: new Date().toISOString()
+  });
+};

@@ -94,7 +94,7 @@ export const createNotice = async (req: Request, res: Response, next: NextFuncti
   try {
     const authUser = (req as any).user;
     const { type, childId, title, content, date, isRead, photoUrl, photoUrls } = req.body;
-    
+
     if (!type || !title || !content || !date) {
       return res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: '필수 값이 누락되었습니다.' });
     }
@@ -123,7 +123,7 @@ export const getNotices = async (req: Request, res: Response, next: NextFunction
     const authUser = (req as any).user;
     const dbUser = await db.collection('users').doc(authUser.uid).get();
     const userData = dbUser.data();
-    
+
     let notices: any[] = [];
     if (userData?.role === 'teacher') {
       notices = await noticeService.getNoticesByAuthor(authUser.uid);
@@ -131,8 +131,10 @@ export const getNotices = async (req: Request, res: Response, next: NextFunction
       // 1. 부모의 아이들 목록 가져오기
       const studentsSnapshot = await db.collection('students').where('parentUid', '==', authUser.uid).get();
       const childIds = studentsSnapshot.docs.map(doc => doc.id);
+
+      // 담당 선생님들의 고유한 이름 목록 추출 (중복 제거)
       const teacherNames = [...new Set(studentsSnapshot.docs.map(doc => doc.data().teacherName).filter(Boolean))];
-      
+
       let teacherUids: string[] = [];
       if (teacherNames.length > 0) {
         const teachersSnapshot = await db.collection('users')
@@ -141,14 +143,16 @@ export const getNotices = async (req: Request, res: Response, next: NextFunction
           .get();
         teacherUids = teachersSnapshot.docs.map(doc => doc.id);
       }
-      
       if (childIds.length > 0) {
-        // 2. 해당 아이들의 개별 알림장 + 내 아이들의 선생님들이 쓴 공통 알림장 가져오기
+        // 2. 해당 아이들의 개별 알림장 가져오기
         const individualNotices = await noticeService.getNoticesByChildIds(childIds);
+
+        // 3. 내 아이들의 담당 선생님들이 쓴 공통 알림장 가져오기
         const commonNotices = await noticeService.getCommonNotices(teacherUids);
+
         notices = [...individualNotices, ...commonNotices];
       } else {
-        // 아이 정보가 없으면 아무 알림장도 가져오지 않음 (공통 알림장도 선생님 매칭 필요)
+        // 아이 정보가 없으면 아무 알림장도 가져오지 않음
         notices = [];
       }
     }
