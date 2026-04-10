@@ -1,0 +1,114 @@
+import { Request, Response, NextFunction } from 'express';
+import * as observationService from '../services/observationService';
+import { StatusCodes } from 'http-status-codes';
+
+export const generateDraft = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { childName, memo, category } = req.body;
+
+    if (!childName || !memo || !category) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        error: '아이 이름, 메모, 누리과정 영역은 필수 입력 항목입니다.'
+      });
+    }
+
+    const draft = await observationService.generateObservationDraft({
+      childName,
+      memo,
+      category
+    });
+
+    res.status(StatusCodes.OK).json(draft);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createObservation = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const observationData = req.body;
+    
+    if (!observationData.childId || !observationData.observationContent) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        success: false,
+        error: '필수 데이터(childId, 관찰 내용 등)가 부족합니다.'
+      });
+    }
+
+    const id = await observationService.saveObservation(observationData);
+    res.status(StatusCodes.CREATED).json({ 
+      success: true, 
+      id, 
+      message: '관찰일지가 저장되었습니다.' 
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getObservations = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { childId, category, date } = req.query;
+    
+    const observations = await observationService.getObservations({
+      childId: childId as string,
+      category: category as string,
+      date: date as string
+    });
+
+    res.status(StatusCodes.OK).json({
+      success: true,
+      observations
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * 음성 파일(STT)을 텍스트로 변환하는 컨트롤러
+ * @param req Multer를 통해 전달된 file 객체와 함께 전달됨
+ * @param res { text: string } 형태의 JSON 반환
+ */
+export const transcribeSTT = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.file) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ error: '오디오 파일이 없습니다.' });
+    }
+
+    const groqApiKey = process.env.GROQ_API_KEY;
+    if (!groqApiKey) {
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ error: 'GROQ_API_KEY가 설정되지 않았습니다.' });
+    }
+
+    const formData = new FormData();
+    // TS 에러 해결: Node.js Buffer를 브라우저 표준 Uint8Array로 감쌉니다.
+    const blob = new Blob([new Uint8Array(req.file.buffer)], { type: req.file.mimetype || 'audio/webm' });
+    
+    formData.append('file', blob, 'audio.webm');
+    formData.append('model', 'whisper-large-v3');
+    formData.append('language', 'ko'); // 한국어
+    formData.append('response_format', 'json');
+
+    const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${groqApiKey}`
+      },
+      body: formData
+    });
+
+    if (!groqRes.ok) {
+      const errorText = await groqRes.text();
+      console.error('Groq API Error:', errorText);
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ error: 'STT 변환 중 오류가 발생했습니다.' });
+    }
+
+    const result = (await groqRes.json()) as { text: string };
+    
+    res.status(StatusCodes.OK).json({ text: result.text });
+  } catch (error) {
+    console.error('STT Processing Error:', error);
+    next(error);
+  }
+};

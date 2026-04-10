@@ -1,4 +1,4 @@
-import { geminiModel } from '../lib/gemini';
+import { noticeModel } from '../lib/gemini';
 
 export interface ReportInput {
   childName: string;
@@ -37,7 +37,7 @@ ${lengthInstruction}
   `;
 
   try {
-    const result = await geminiModel.generateContent({
+    const result = await noticeModel.generateContent({
       contents: [
         { role: 'user', parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] }
       ]
@@ -75,7 +75,7 @@ ${input.content}
   `;
 
   try {
-    const result = await geminiModel.generateContent({
+    const result = await noticeModel.generateContent({
       contents: [
         { role: 'user', parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] }
       ]
