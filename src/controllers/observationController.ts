@@ -64,3 +64,46 @@ export const getObservations = async (req: Request, res: Response, next: NextFun
     next(error);
   }
 };
+
+export const transcribeSTT = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.file) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ error: '오디오 파일이 없습니다.' });
+    }
+
+    const groqApiKey = process.env.GROQ_API_KEY;
+    if (!groqApiKey) {
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ error: 'GROQ_API_KEY가 설정되지 않았습니다.' });
+    }
+
+    const formData = new FormData();
+    // TS 에러 해결: Node.js Buffer를 브라우저 표준 Uint8Array로 감쌉니다.
+    const blob = new Blob([new Uint8Array(req.file.buffer)], { type: req.file.mimetype || 'audio/webm' });
+    
+    formData.append('file', blob, 'audio.webm');
+    formData.append('model', 'whisper-large-v3');
+    formData.append('language', 'ko'); // 한국어
+    formData.append('response_format', 'json');
+
+    const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${groqApiKey}`
+      },
+      body: formData
+    });
+
+    if (!groqRes.ok) {
+      const errorText = await groqRes.text();
+      console.error('Groq API Error:', errorText);
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ error: 'STT 변환 중 오류가 발생했습니다.' });
+    }
+
+    const result = (await groqRes.json()) as { text: string };
+    
+    res.status(StatusCodes.OK).json({ text: result.text });
+  } catch (error) {
+    console.error('STT Processing Error:', error);
+    next(error);
+  }
+};
