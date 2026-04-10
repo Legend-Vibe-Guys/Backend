@@ -10,6 +10,7 @@ const upload = multer({ storage: multer.memoryStorage() });
  * /observations/stt:
  *   post:
  *     summary: 음성 파일을 텍스트로 변환 (Groq Whisper)
+ *     description: 브라우저에서 녹음된 오디오 파일(Blob)을 받아 Groq의 Whisper-large-v3 모델을 통해 한국어 텍스트로 변환합니다.
  *     tags: [Observations]
  *     requestBody:
  *       required: true
@@ -21,9 +22,23 @@ const upload = multer({ storage: multer.memoryStorage() });
  *               file:
  *                 type: string
  *                 format: binary
+ *                 description: 녹음된 오디오 파일 (audio/webm 등)
  *     responses:
  *       200:
  *         description: 변환 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 text:
+ *                   type: string
+ *                   description: 변환된 텍스트 내용
+ *                   example: "아이가 친구에게 장난감을 양보하며 즐겁게 놀았습니다."
+ *       400:
+ *         description: 파일 없음 또는 요청 오류
+ *       500:
+ *         description: STT 변환 실패 또는 API 키 설정 오류
  */
 router.post('/stt', upload.single('file'), observationController.transcribeSTT);
 
