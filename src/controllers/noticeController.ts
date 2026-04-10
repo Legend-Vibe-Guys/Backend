@@ -94,7 +94,7 @@ export const createNotice = async (req: Request, res: Response, next: NextFuncti
   try {
     const authUser = (req as any).user;
     const { type, childId, title, content, date, isRead, photoUrl, photoUrls } = req.body;
-    
+
     if (!type || !title || !content || !date) {
       return res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: '필수 값이 누락되었습니다.' });
     }
@@ -123,36 +123,37 @@ export const getNotices = async (req: Request, res: Response, next: NextFunction
     const authUser = (req as any).user;
     const dbUser = await db.collection('users').doc(authUser.uid).get();
     const userData = dbUser.data();
-    
+
     let notices: any[] = [];
     if (userData?.role === 'teacher') {
       notices = await noticeService.getNoticesByAuthor(authUser.uid);
     } else if (userData?.role === 'parent') {
       // 1. 부모의 아이들 목록 가져오기
-      const students = await db.collection('students').where('parentUid', '==', authUser.uid).get();
-      const childIds = students.docs.map(doc => doc.id);
-      const teacherNames = students.docs.map(doc => doc.data().teacherName).filter(Boolean);
-      
+      const studentsSnapshot = await db.collection('students').where('parentUid', '==', authUser.uid).get();
+      const childIds = studentsSnapshot.docs.map(doc => doc.id);
+
+      // 담당 선생님들의 고유한 이름 목록 추출 (중복 제거)
+      const teacherNames = [...new Set(studentsSnapshot.docs.map(doc => doc.data().teacherName).filter(Boolean))];
+
+      let teacherUids: string[] = [];
+      if (teacherNames.length > 0) {
+        const teachersSnapshot = await db.collection('users')
+          .where('role', '==', 'teacher')
+          .where('name', 'in', teacherNames)
+          .get();
+        teacherUids = teachersSnapshot.docs.map(doc => doc.id);
+      }
       if (childIds.length > 0) {
         // 2. 해당 아이들의 개별 알림장 가져오기
         const individualNotices = await noticeService.getNoticesByChildIds(childIds);
-        
-        // 3. 담당 선생님들의 UID 찾기
-        let teacherUids: string[] = [];
-        if (teacherNames.length > 0) {
-          const teachersSnapshot = await db.collection('users')
-            .where('role', '==', 'teacher')
-            .where('name', 'in', teacherNames)
-            .get();
-          teacherUids = teachersSnapshot.docs.map(doc => doc.id);
-        }
 
-        // 4. 담당 선생님이 쓴 공통 알림장만 가져오기
-        const commonNotices = await noticeService.getCommonNoticesByAuthors(teacherUids);
-        
+        // 3. 내 아이들의 담당 선생님들이 쓴 공통 알림장 가져오기
+        const commonNotices = await noticeService.getCommonNotices(teacherUids);
+
         notices = [...individualNotices, ...commonNotices];
       } else {
-        notices = []; // 아이가 없으면 알림장 없음
+        // 아이 정보가 없으면 아무 알림장도 가져오지 않음
+        notices = [];
       }
     }
     res.status(StatusCodes.OK).json({ success: true, notices });

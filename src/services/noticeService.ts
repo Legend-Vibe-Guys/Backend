@@ -67,10 +67,17 @@ export const getNoticesByChildIds = async (childIds: string[]) => {
   });
 };
 
-export const getCommonNotices = async () => {
-  const snapshot = await db.collection('notices')
-    .where('type', '==', 'common')
-    .get();
+export const getCommonNotices = async (authorUids?: string[]) => {
+  let query = db.collection('notices').where('type', '==', 'common');
+  
+  if (authorUids && authorUids.length > 0) {
+    query = query.where('authorUid', 'in', authorUids);
+  } else if (authorUids && authorUids.length === 0) {
+    // If an empty array is provided, return no common notices
+    return [];
+  }
+
+  const snapshot = await query.get();
   return snapshot.docs.map(doc => {
     const data = doc.data();
     return { 
