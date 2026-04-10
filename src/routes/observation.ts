@@ -1,7 +1,31 @@
 import express, { Router } from 'express';
 import * as observationController from '../controllers/observationController';
+import multer from 'multer';
 
 const router: Router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() });
+
+/**
+ * @swagger
+ * /observations/stt:
+ *   post:
+ *     summary: 음성 파일을 텍스트로 변환 (Groq Whisper)
+ *     tags: [Observations]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: 변환 성공
+ */
+router.post('/stt', upload.single('file'), observationController.transcribeSTT);
 
 /**
  * @swagger
