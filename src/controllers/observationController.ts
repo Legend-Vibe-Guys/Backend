@@ -65,6 +65,11 @@ export const getObservations = async (req: Request, res: Response, next: NextFun
   }
 };
 
+/**
+ * 음성 파일(STT)을 텍스트로 변환하는 컨트롤러
+ * @param req Multer를 통해 전달된 file 객체와 함께 전달됨
+ * @param res { text: string } 형태의 JSON 반환
+ */
 export const transcribeSTT = async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.file) {
