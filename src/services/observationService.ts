@@ -83,12 +83,20 @@ export const saveObservation = async (data: ObservationRecord): Promise<string> 
   return docRef.id;
 };
 
-export const getObservations = async (filters: { childId?: string; category?: string; date?: string }) => {
+export const getObservations = async (filters: { childId?: string | string[]; category?: string; date?: string; teacherId?: string }) => {
   let query: any = db.collection('observations');
 
-  if (filters.childId && filters.childId.trim() !== "") {
-    query = query.where('childId', '==', filters.childId.trim());
+  if (filters.childId) {
+    if (Array.isArray(filters.childId) && filters.childId.length > 0) {
+      query = query.where('childId', 'in', filters.childId);
+    } else if (typeof filters.childId === 'string' && filters.childId.trim() !== "") {
+      query = query.where('childId', '==', filters.childId.trim());
+    }
+  } else if (filters.teacherId && filters.teacherId.trim() !== "") {
+    // childId가 없을 때만 teacherId 필터 적용 (교사 본인 기록만 조회)
+    query = query.where('teacherId', '==', filters.teacherId.trim());
   }
+  
   if (filters.category && filters.category.trim() !== "") {
     query = query.where('category', '==', filters.category.trim());
   }

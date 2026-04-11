@@ -30,4 +30,10 @@ router.post(
   authController.login,
 );
 
+router.patch(
+  '/profile',
+  verifyToken,
+  authController.updateProfile,
+);
+
 export default router;

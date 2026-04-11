@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import * as observationService from '../services/observationService';
+import { db } from '../lib/firebase';
 import { StatusCodes } from 'http-status-codes';
 
 export const generateDraft = async (req: Request, res: Response, next: NextFunction) => {
@@ -26,6 +27,7 @@ export const generateDraft = async (req: Request, res: Response, next: NextFunct
 
 export const createObservation = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const authUser = (req as any).user;
     const observationData = req.body;
     
     if (!observationData.childId || !observationData.observationContent) {
@@ -34,6 +36,9 @@ export const createObservation = async (req: Request, res: Response, next: NextF
         error: '필수 데이터(childId, 관찰 내용 등)가 부족합니다.'
       });
     }
+
+    // teacherId는 항상 인증된 사용자 uid로 덮어씀 (클라이언트 조작 방지)
+    observationData.teacherId = authUser.uid;
 
     const id = await observationService.saveObservation(observationData);
     res.status(StatusCodes.CREATED).json({ 
@@ -48,13 +53,39 @@ export const createObservation = async (req: Request, res: Response, next: NextF
 
 export const getObservations = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const authUser = (req as any).user;
     const { childId, category, date } = req.query;
     
-    const observations = await observationService.getObservations({
-      childId: childId as string,
+    // 유저 정보 가져와서 역할 확인
+    const userDoc = await db.collection('users').doc(authUser.uid).get();
+    const userData = userDoc.data();
+
+    const filters: { childId?: string | string[]; category?: string; date?: string; teacherId?: string } = {
       category: category as string,
-      date: date as string
-    });
+      date: date as string,
+    };
+
+    if (childId) {
+      filters.childId = childId as string;
+    } else {
+      // 특정 childId가 없을 때 역할별 기본 필터 설정
+      if (userData?.role === 'parent') {
+        // 부모인 경우 자신의 자녀들 ID 목록 가져오기
+        const studentsSnapshot = await db.collection('students').where('parentUid', '==', authUser.uid).get();
+        const childIds = studentsSnapshot.docs.map(doc => doc.id);
+        
+        if (childIds.length > 0) {
+          filters.childId = childIds; // 배열로 전달 (상위 서비스에서 처리 필요할 수 있음)
+        } else {
+          return res.status(StatusCodes.OK).json({ success: true, observations: [] });
+        }
+      } else {
+        // 교사인 경우 자신이 작성한 기록만
+        filters.teacherId = authUser.uid;
+      }
+    }
+
+    const observations = await observationService.getObservations(filters);
 
     res.status(StatusCodes.OK).json({
       success: true,

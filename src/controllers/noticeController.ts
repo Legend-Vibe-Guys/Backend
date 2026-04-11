@@ -132,17 +132,9 @@ export const getNotices = async (req: Request, res: Response, next: NextFunction
       const studentsSnapshot = await db.collection('students').where('parentUid', '==', authUser.uid).get();
       const childIds = studentsSnapshot.docs.map(doc => doc.id);
 
-      // 담당 선생님들의 고유한 이름 목록 추출 (중복 제거)
-      const teacherNames = [...new Set(studentsSnapshot.docs.map(doc => doc.data().teacherName).filter(Boolean))];
+      // 1-1. 담당 선생님들의 UID 목록 추출 (중복 제거)
+      const teacherUids = [...new Set(studentsSnapshot.docs.map(doc => doc.data().teacherUid).filter(Boolean))];
 
-      let teacherUids: string[] = [];
-      if (teacherNames.length > 0) {
-        const teachersSnapshot = await db.collection('users')
-          .where('role', '==', 'teacher')
-          .where('name', 'in', teacherNames)
-          .get();
-        teacherUids = teachersSnapshot.docs.map(doc => doc.id);
-      }
       if (childIds.length > 0) {
         // 2. 해당 아이들의 개별 알림장 가져오기
         const individualNotices = await noticeService.getNoticesByChildIds(childIds);
