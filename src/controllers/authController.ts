@@ -98,6 +98,7 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
         kidsName: studentInfo.kidsName,
         birthDate: studentInfo.birthDate,
         teacherName: studentInfo.teacherName,
+        teacherUid: studentInfo.teacherUid || '', // UID 저장
         parentUid: authUser.uid,
         createdAt: new Date(),
         className: '', // 초기화
@@ -164,6 +165,57 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       success: true,
       message: '로그인 성공',
       user: responseUser,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * 교사 프로필 업데이트 (주로 반 이름 설정)
+ * PATCH /auth/profile
+ */
+export const updateProfile = async (req: Request, res: Response, next: NextFunction) => {
+  const authUser = (req as any).user;
+  const { className } = req.body;
+
+  try {
+    const userDoc = await db.collection('users').doc(authUser.uid).get();
+    if (!userDoc.exists) {
+      return res.status(StatusCodes.NOT_FOUND).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
+    }
+
+    const userData = userDoc.data();
+    if (userData?.role !== 'teacher') {
+      return res.status(StatusCodes.FORBIDDEN).json({ success: false, message: '교사만 이 기능을 사용할 수 있습니다.' });
+    }
+
+    // 1. 교사 doc 업데이트
+    await db.collection('users').doc(authUser.uid).update({ className: className || '' });
+
+    // 2. 해당 교사 이름으로 등록된 학생들의 className도 일괄 업데이트
+    if (userData?.name) {
+      const studentsSnapshot = await db
+        .collection('students')
+        .where('teacherName', '==', userData.name)
+        .get();
+
+      if (!studentsSnapshot.empty) {
+        const batch = db.batch();
+        studentsSnapshot.docs.forEach(doc => {
+          batch.update(doc.ref, { 
+            className: className || '',
+            teacherUid: authUser.uid // UID 주입 (데이터 보정)
+          });
+        });
+        await batch.commit();
+      }
+    }
+
+    res.status(StatusCodes.OK).json({
+      success: true,
+      message: '프로필이 업데이트되었습니다.',
+      className: className || '',
     });
   } catch (error) {
     next(error);

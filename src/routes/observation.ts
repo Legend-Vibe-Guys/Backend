@@ -1,6 +1,7 @@
 import express, { Router } from 'express';
 import * as observationController from '../controllers/observationController';
 import multer from 'multer';
+import { verifyToken } from '../middlewares/auth';
 
 const router: Router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -98,7 +99,7 @@ router.post('/generate-draft', observationController.generateDraft);
  *       201:
  *         description: 저장 성공
  */
-router.post('/', observationController.createObservation);
+router.post('/', verifyToken, observationController.createObservation);
 
 /**
  * @swagger
@@ -116,7 +117,7 @@ router.post('/', observationController.createObservation);
  *         schema:
  *           type: string
  */
-router.get('/', observationController.getObservations);
+router.get('/', verifyToken, observationController.getObservations);
 
 /**
  * @swagger
@@ -134,7 +135,7 @@ router.get('/', observationController.getObservations);
  *       200:
  *         description: 삭제 성공
  */
-router.delete('/:id', observationController.deleteObservation);
+router.delete('/:id', verifyToken, observationController.deleteObservation);
 
 /**
  * @swagger
@@ -163,6 +164,6 @@ router.delete('/:id', observationController.deleteObservation);
  *       200:
  *         description: 수정 성공
  */
-router.patch('/:id', observationController.updateObservation);
+router.patch('/:id', verifyToken, observationController.updateObservation);
 
 export default router;
