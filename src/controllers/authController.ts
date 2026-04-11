@@ -98,6 +98,7 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
         kidsName: studentInfo.kidsName,
         birthDate: studentInfo.birthDate,
         teacherName: studentInfo.teacherName,
+        teacherUid: studentInfo.teacherUid || '', // UID 저장
         parentUid: authUser.uid,
         createdAt: new Date(),
         className: '', // 초기화
@@ -202,7 +203,10 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
       if (!studentsSnapshot.empty) {
         const batch = db.batch();
         studentsSnapshot.docs.forEach(doc => {
-          batch.update(doc.ref, { className: className || '' });
+          batch.update(doc.ref, { 
+            className: className || '',
+            teacherUid: authUser.uid // UID 주입 (데이터 보정)
+          });
         });
         await batch.commit();
       }

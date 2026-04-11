@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import * as observationService from '../services/observationService';
+import { db } from '../lib/firebase';
 import { StatusCodes } from 'http-status-codes';
 
 export const generateDraft = async (req: Request, res: Response, next: NextFunction) => {
@@ -55,9 +56,11 @@ export const getObservations = async (req: Request, res: Response, next: NextFun
     const authUser = (req as any).user;
     const { childId, category, date } = req.query;
     
-    // childId 필터가 없으면 (부모가 특정 아이 조회가 아닌 경우)
-    // 교사 역할인 경우 자신의 teacherId로 필터링
-    const filters: { childId?: string; category?: string; date?: string; teacherId?: string } = {
+    // 유저 정보 가져와서 역할 확인
+    const userDoc = await db.collection('users').doc(authUser.uid).get();
+    const userData = userDoc.data();
+
+    const filters: { childId?: string | string[]; category?: string; date?: string; teacherId?: string } = {
       category: category as string,
       date: date as string,
     };
@@ -65,8 +68,21 @@ export const getObservations = async (req: Request, res: Response, next: NextFun
     if (childId) {
       filters.childId = childId as string;
     } else {
-      // 특정 childId 없이 전체 조회 시 → 자신이 작성한 기록만
-      filters.teacherId = authUser.uid;
+      // 특정 childId가 없을 때 역할별 기본 필터 설정
+      if (userData?.role === 'parent') {
+        // 부모인 경우 자신의 자녀들 ID 목록 가져오기
+        const studentsSnapshot = await db.collection('students').where('parentUid', '==', authUser.uid).get();
+        const childIds = studentsSnapshot.docs.map(doc => doc.id);
+        
+        if (childIds.length > 0) {
+          filters.childId = childIds; // 배열로 전달 (상위 서비스에서 처리 필요할 수 있음)
+        } else {
+          return res.status(StatusCodes.OK).json({ success: true, observations: [] });
+        }
+      } else {
+        // 교사인 경우 자신이 작성한 기록만
+        filters.teacherId = authUser.uid;
+      }
     }
 
     const observations = await observationService.getObservations(filters);
