@@ -29,7 +29,7 @@ export const createObservation = async (req: Request, res: Response, next: NextF
   try {
     const authUser = (req as any).user;
     const observationData = req.body;
-    
+
     if (!observationData.childId || !observationData.observationContent) {
       return res.status(StatusCodes.BAD_REQUEST).json({
         success: false,
@@ -41,10 +41,10 @@ export const createObservation = async (req: Request, res: Response, next: NextF
     observationData.teacherId = authUser.uid;
 
     const id = await observationService.saveObservation(observationData);
-    res.status(StatusCodes.CREATED).json({ 
-      success: true, 
-      id, 
-      message: '관찰일지가 저장되었습니다.' 
+    res.status(StatusCodes.CREATED).json({
+      success: true,
+      id,
+      message: '관찰일지가 저장되었습니다.'
     });
   } catch (error) {
     next(error);
@@ -55,7 +55,7 @@ export const getObservations = async (req: Request, res: Response, next: NextFun
   try {
     const authUser = (req as any).user;
     const { childId, category, date } = req.query;
-    
+
     // 유저 정보 가져와서 역할 확인
     const userDoc = await db.collection('users').doc(authUser.uid).get();
     const userData = userDoc.data();
@@ -67,22 +67,34 @@ export const getObservations = async (req: Request, res: Response, next: NextFun
 
     if (childId) {
       filters.childId = childId as string;
-    } else {
-      // 특정 childId가 없을 때 역할별 기본 필터 설정
-      if (userData?.role === 'parent') {
-        // 부모인 경우 자신의 자녀들 ID 목록 가져오기
-        const studentsSnapshot = await db.collection('students').where('parentUid', '==', authUser.uid).get();
-        const childIds = studentsSnapshot.docs.map(doc => doc.id);
-        
-        if (childIds.length > 0) {
-          filters.childId = childIds; // 배열로 전달 (상위 서비스에서 처리 필요할 수 있음)
-        } else {
-          return res.status(StatusCodes.OK).json({ success: true, observations: [] });
+    }
+
+    // 역할별 권한 제어
+    if (userData?.role === 'parent') {
+      // 부모인 경우 자신의 자녀들 ID 목록 가져오기
+      const studentsSnapshot = await db.collection('students').where('parentUid', '==', authUser.uid).get();
+      const myChildIds = studentsSnapshot.docs.map(doc => doc.id);
+
+      if (myChildIds.length === 0) {
+        return res.status(StatusCodes.OK).json({ success: true, observations: [] });
+      }
+
+      if (filters.childId) {
+        // 특정 아이를 요청한 경우, 본인 자녀인지 확인
+        const requestedChildId = filters.childId as string;
+        if (!myChildIds.includes(requestedChildId)) {
+          return res.status(StatusCodes.FORBIDDEN).json({
+            success: false,
+            error: '본인 자녀의 정보만 조회할 수 있습니다.'
+          });
         }
       } else {
-        // 교사인 경우 자신이 작성한 기록만
-        filters.teacherId = authUser.uid;
+        // 아이를 지정하지 않은 경우, 본인의 모든 자녀 데이터 필터링
+        filters.childId = myChildIds;
       }
+    } else {
+      // 교사(또는 기타역할)인 경우: 본인이 작성한 기록만 필터링
+      filters.teacherId = authUser.uid;
     }
 
     const observations = await observationService.getObservations(filters);
@@ -115,7 +127,7 @@ export const transcribeSTT = async (req: Request, res: Response, next: NextFunct
     const formData = new FormData();
     // TS 에러 해결: Node.js Buffer를 브라우저 표준 Uint8Array로 감쌉니다.
     const blob = new Blob([new Uint8Array(req.file.buffer)], { type: req.file.mimetype || 'audio/webm' });
-    
+
     formData.append('file', blob, 'audio.webm');
     formData.append('model', 'whisper-large-v3');
     formData.append('language', 'ko'); // 한국어
@@ -136,7 +148,7 @@ export const transcribeSTT = async (req: Request, res: Response, next: NextFunct
     }
 
     const result = (await groqRes.json()) as { text: string };
-    
+
     res.status(StatusCodes.OK).json({ text: result.text });
   } catch (error) {
     console.error('STT Processing Error:', error);
@@ -162,7 +174,7 @@ export const updateObservation = async (req: Request, res: Response, next: NextF
   try {
     const { id } = req.params;
     const updateData = req.body;
-    
+
     if (!id) {
       return res.status(StatusCodes.BAD_REQUEST).json({ success: false, error: '수정할 ID가 필요합니다.' });
     }
