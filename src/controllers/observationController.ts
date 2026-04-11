@@ -26,6 +26,7 @@ export const generateDraft = async (req: Request, res: Response, next: NextFunct
 
 export const createObservation = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const authUser = (req as any).user;
     const observationData = req.body;
     
     if (!observationData.childId || !observationData.observationContent) {
@@ -34,6 +35,9 @@ export const createObservation = async (req: Request, res: Response, next: NextF
         error: '필수 데이터(childId, 관찰 내용 등)가 부족합니다.'
       });
     }
+
+    // teacherId는 항상 인증된 사용자 uid로 덮어씀 (클라이언트 조작 방지)
+    observationData.teacherId = authUser.uid;
 
     const id = await observationService.saveObservation(observationData);
     res.status(StatusCodes.CREATED).json({ 
@@ -48,13 +52,24 @@ export const createObservation = async (req: Request, res: Response, next: NextF
 
 export const getObservations = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const authUser = (req as any).user;
     const { childId, category, date } = req.query;
     
-    const observations = await observationService.getObservations({
-      childId: childId as string,
+    // childId 필터가 없으면 (부모가 특정 아이 조회가 아닌 경우)
+    // 교사 역할인 경우 자신의 teacherId로 필터링
+    const filters: { childId?: string; category?: string; date?: string; teacherId?: string } = {
       category: category as string,
-      date: date as string
-    });
+      date: date as string,
+    };
+
+    if (childId) {
+      filters.childId = childId as string;
+    } else {
+      // 특정 childId 없이 전체 조회 시 → 자신이 작성한 기록만
+      filters.teacherId = authUser.uid;
+    }
+
+    const observations = await observationService.getObservations(filters);
 
     res.status(StatusCodes.OK).json({
       success: true,

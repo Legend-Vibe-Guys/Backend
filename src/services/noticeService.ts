@@ -68,16 +68,17 @@ export const getNoticesByChildIds = async (childIds: string[]) => {
 };
 
 export const getCommonNotices = async (authorUids?: string[]) => {
-  let query = db.collection('notices').where('type', '==', 'common');
-  
-  if (authorUids && authorUids.length > 0) {
-    query = query.where('authorUid', 'in', authorUids);
-  } else if (authorUids && authorUids.length === 0) {
-    // If an empty array is provided, return no common notices
+  // authorUids가 undefined이거나 빈 배열이면 반드시 빈 배열 반환
+  // (필터 없이 전체 공통 알림장을 반환하지 않도록 방어)
+  if (!authorUids || authorUids.length === 0) {
     return [];
   }
 
-  const snapshot = await query.get();
+  const snapshot = await db.collection('notices')
+    .where('type', '==', 'common')
+    .where('authorUid', 'in', authorUids)
+    .get();
+
   return snapshot.docs.map(doc => {
     const data = doc.data();
     return { 
