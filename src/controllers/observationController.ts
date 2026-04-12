@@ -89,19 +89,22 @@ export const getObservations = async (req: Request, res: Response, next: NextFun
           });
         }
       } else {
-        // 전체 조회 요청 시 본인 자녀들 기록만
+// 부모용: 필터가 없으면 자기 자녀들 것만 보이도록 설정
         filters.childId = myChildIds;
       }
     } else {
-      // 2. 교사인 경우: 자신의 반 원아 목록을 먼저 조회하여 childId로 필터링
-      // - teacherId 기반 필터링은 구버전 데이터 누락(teacherId 미저장) 이슈가 있어 사용하지 않음
+      // 2. 교사(또는 기타역할)인 경우:
+      // (1) 본인이 작성한 기록만 보이도록 teacherId 강제 설정 (사용자 요청 사항)
+      filters.teacherId = authUser.uid;
+
+      // (2) 자신이 관리하는 원아 목록을 가져와서 필터링 (보안 강화)
       const studentsSnapshot = await db.collection('students')
         .where('teacherUid', '==', authUser.uid)
         .get();
       
       let myChildIds = studentsSnapshot.docs.map(doc => doc.id);
 
-      // teacherUid 필드가 없는 경우 대비: classId로도 탐색 (폴백 1)
+      // teacherUid 필드가 없는 구버전 데이터 대응 (classId 폴백)
       if (myChildIds.length === 0) {
         const classId = userData?.classId;
         if (classId) {
@@ -111,20 +114,19 @@ export const getObservations = async (req: Request, res: Response, next: NextFun
       }
       
       if (myChildIds.length > 0) {
-        // 아동 필터가 이미 있으면(특정 아동 조회 시), 그 아이가 내 담당인지 추가 검증
+        // 요청된 childId가 내 담당 원아인지 검증 (main 브랜치 로직 반영)
         if (filters.childId) {
           const requestedId = filters.childId as string;
           if (!myChildIds.includes(requestedId)) {
-             // 내 담당이 아니면 빈 결과 혹은 에러
-             return res.status(StatusCodes.FORBIDDEN).json({ success: false, error: '담당 원아의 기록만 조회할 수 있습니다.' });
+             return res.status(StatusCodes.FORBIDDEN).json({ 
+               success: false, 
+               error: '담당 원아의 기록만 조회할 수 있습니다.' 
+             });
           }
         } else {
-          // 전체 조회 시 담당 원아들 데이터만
+          // 전체 조회 시 담당 원아들 데이터로 범위 제한
           filters.childId = myChildIds;
         }
-      } else {
-        // 담당 원아 매핑이 전혀 없는 경우에만 안전책으로 본인 작성 기록만 조회
-        filters.teacherId = authUser.uid;
       }
     }
 
