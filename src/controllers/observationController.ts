@@ -71,7 +71,7 @@ export const getObservations = async (req: Request, res: Response, next: NextFun
 
     // 역할별 권한 제어
     if (userData?.role === 'parent') {
-      // 부모인 경우 자신의 자녀들 ID 목록 가져오기
+      // 1. 부모인 경우: 자신의 자녀들 ID 목록 가져오기
       const studentsSnapshot = await db.collection('students').where('parentUid', '==', authUser.uid).get();
       const myChildIds = studentsSnapshot.docs.map(doc => doc.id);
 
@@ -89,34 +89,43 @@ export const getObservations = async (req: Request, res: Response, next: NextFun
           });
         }
       } else {
-        // 교사인 경우: 자신의 반 원아 목록을 먼저 조회하여 childId로 필터링
-        // - teacherId 기반 필터링은 구버전 데이터 누락(teacherId 미저장) 이슈가 있어 사용하지 않음
-        const studentsSnapshot = await db.collection('students')
-          .where('teacherUid', '==', authUser.uid)
-          .get();
-        
-        let myChildIds = studentsSnapshot.docs.map(doc => doc.id);
-
-        // teacherUid 필드가 없는 경우 대비: classId로도 탐색
-        if (myChildIds.length === 0) {
-          const userDoc2 = await db.collection('users').doc(authUser.uid).get();
-          const classId = userDoc2.data()?.classId;
-          if (classId) {
-            const byClass = await db.collection('students').where('classId', '==', classId).get();
-            myChildIds = byClass.docs.map(doc => doc.id);
-          }
-        }
-        
-        if (myChildIds.length > 0) {
-          filters.childId = myChildIds;
-        } else {
-          // 담당 원아가 없는 경우 본인 기록만 (안전 대비)
-          filters.teacherId = authUser.uid;
-        }
+        // 전체 조회 요청 시 본인 자녀들 기록만
+        filters.childId = myChildIds;
       }
     } else {
-      // 교사(또는 기타역할)인 경우: 본인이 작성한 기록만 필터링
-      filters.teacherId = authUser.uid;
+      // 2. 교사인 경우: 자신의 반 원아 목록을 먼저 조회하여 childId로 필터링
+      // - teacherId 기반 필터링은 구버전 데이터 누락(teacherId 미저장) 이슈가 있어 사용하지 않음
+      const studentsSnapshot = await db.collection('students')
+        .where('teacherUid', '==', authUser.uid)
+        .get();
+      
+      let myChildIds = studentsSnapshot.docs.map(doc => doc.id);
+
+      // teacherUid 필드가 없는 경우 대비: classId로도 탐색 (폴백 1)
+      if (myChildIds.length === 0) {
+        const classId = userData?.classId;
+        if (classId) {
+          const byClass = await db.collection('students').where('classId', '==', classId).get();
+          myChildIds = byClass.docs.map(doc => doc.id);
+        }
+      }
+      
+      if (myChildIds.length > 0) {
+        // 아동 필터가 이미 있으면(특정 아동 조회 시), 그 아이가 내 담당인지 추가 검증
+        if (filters.childId) {
+          const requestedId = filters.childId as string;
+          if (!myChildIds.includes(requestedId)) {
+             // 내 담당이 아니면 빈 결과 혹은 에러
+             return res.status(StatusCodes.FORBIDDEN).json({ success: false, error: '담당 원아의 기록만 조회할 수 있습니다.' });
+          }
+        } else {
+          // 전체 조회 시 담당 원아들 데이터만
+          filters.childId = myChildIds;
+        }
+      } else {
+        // 담당 원아 매핑이 전혀 없는 경우에만 안전책으로 본인 작성 기록만 조회
+        filters.teacherId = authUser.uid;
+      }
     }
 
     const observations = await observationService.getObservations(filters);
