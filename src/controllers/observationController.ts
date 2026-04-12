@@ -89,15 +89,15 @@ export const getObservations = async (req: Request, res: Response, next: NextFun
           });
         }
       } else {
-        // 부모의 기본 필터: 자신의 모든 자녀들
+        // 부모용: 필터가 없으면 자기 자녀들 것만 보이도록 설정
         filters.childId = myChildIds;
       }
     } else {
       // 2. 교사(또는 기타역할)인 경우:
-      // (1) 본인이 작성한 기록만 보이도록 teacherId 강제 설정 (보안 강화)
+      // (1) 본인이 작성한 기록만 보이도록 teacherId 강제 설정 (사용자 요청 사항)
       filters.teacherId = authUser.uid;
 
-      // (2) 자신이 관리하는 원아 목록을 가져와서 필터링 (안전 대비)
+      // (2) 자신이 관리하는 원아 목록을 가져와서 필터링 (보안 강화)
       const studentsSnapshot = await db.collection('students')
         .where('teacherUid', '==', authUser.uid)
         .get();
@@ -114,7 +114,7 @@ export const getObservations = async (req: Request, res: Response, next: NextFun
       }
       
       if (myChildIds.length > 0) {
-        // 특정 아동 조회 요청 시, 내 담당 원아인지 검증
+        // 요청된 childId가 내 담당 원아인지 검증 (main 브랜치 로직 반영)
         if (filters.childId) {
           const requestedId = filters.childId as string;
           if (!myChildIds.includes(requestedId)) {
@@ -143,8 +143,6 @@ export const getObservations = async (req: Request, res: Response, next: NextFun
 
 /**
  * 음성 파일(STT)을 텍스트로 변환하는 컨트롤러
- * @param req Multer를 통해 전달된 file 객체와 함께 전달됨
- * @param res { text: string } 형태의 JSON 반환
  */
 export const transcribeSTT = async (req: Request, res: Response, next: NextFunction) => {
   try {
