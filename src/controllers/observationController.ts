@@ -89,8 +89,30 @@ export const getObservations = async (req: Request, res: Response, next: NextFun
           });
         }
       } else {
-        // 아이를 지정하지 않은 경우, 본인의 모든 자녀 데이터 필터링
-        filters.childId = myChildIds;
+        // 교사인 경우: 자신의 반 원아 목록을 먼저 조회하여 childId로 필터링
+        // - teacherId 기반 필터링은 구버전 데이터 누락(teacherId 미저장) 이슈가 있어 사용하지 않음
+        const studentsSnapshot = await db.collection('students')
+          .where('teacherUid', '==', authUser.uid)
+          .get();
+        
+        let myChildIds = studentsSnapshot.docs.map(doc => doc.id);
+
+        // teacherUid 필드가 없는 경우 대비: classId로도 탐색
+        if (myChildIds.length === 0) {
+          const userDoc2 = await db.collection('users').doc(authUser.uid).get();
+          const classId = userDoc2.data()?.classId;
+          if (classId) {
+            const byClass = await db.collection('students').where('classId', '==', classId).get();
+            myChildIds = byClass.docs.map(doc => doc.id);
+          }
+        }
+        
+        if (myChildIds.length > 0) {
+          filters.childId = myChildIds;
+        } else {
+          // 담당 원아가 없는 경우 본인 기록만 (안전 대비)
+          filters.teacherId = authUser.uid;
+        }
       }
     } else {
       // 교사(또는 기타역할)인 경우: 본인이 작성한 기록만 필터링

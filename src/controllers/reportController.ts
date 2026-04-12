@@ -162,11 +162,21 @@ export const saveMonthlyReport = async (req: Request, res: Response) => {
 
 export const getMonthlyReports = async (req: Request, res: Response) => {
   try {
+    const authUser = (req as any).user;
     const { childId } = req.query;
+    
     if (!childId) {
       return res.status(400).json({ success: false, message: 'childId가 필요합니다.' });
     }
-    const reports = await reportService.getMonthlyReportsByChild(childId as string);
+
+    let reports = await reportService.getMonthlyReportsByChild(childId as string);
+
+    // 부모인 경우 전송된(isSent: true) 보고서만 필터링
+    // authUser.role 정보가 없으면 DB에서 유저 정보를 가져와야 함 (여기서는 auth 미들웨어에서 넣어준다고 가정)
+    if (authUser.role === 'parent') {
+      reports = reports.filter((r: any) => r.isSent === true);
+    }
+
     res.status(200).json({ success: true, reports });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
