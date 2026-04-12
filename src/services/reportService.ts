@@ -99,6 +99,7 @@ export interface MonthlyReportData {
   reportMonth: string;
   details: any;
   teacherId?: string;
+  isSent?: boolean;      // 전송 여부 필드 추가
   createdAt?: string;
 }
 
