@@ -71,7 +71,7 @@ export const getObservations = async (req: Request, res: Response, next: NextFun
 
     // 역할별 권한 제어
     if (userData?.role === 'parent') {
-      // 부모인 경우 자신의 자녀들 ID 목록 가져오기
+      // 1. 부모인 경우: 자신의 자녀들 ID 목록 가져오기
       const studentsSnapshot = await db.collection('students').where('parentUid', '==', authUser.uid).get();
       const myChildIds = studentsSnapshot.docs.map(doc => doc.id);
 
@@ -93,18 +93,18 @@ export const getObservations = async (req: Request, res: Response, next: NextFun
         filters.childId = myChildIds;
       }
     } else {
-      // 교사(또는 기타역할)인 경우:
-      // 1. 본인이 작성한 기록만 필터링 (보관용/보안)
+      // 2. 교사(또는 기타역할)인 경우:
+      // (1) 본인이 작성한 기록만 보이도록 teacherId 강제 설정 (보안 강화)
       filters.teacherId = authUser.uid;
 
-      // 2. 자신이 관리하는 원아 목록을 가져와서 필터링 (안전 대비)
+      // (2) 자신이 관리하는 원아 목록을 가져와서 필터링 (안전 대비)
       const studentsSnapshot = await db.collection('students')
         .where('teacherUid', '==', authUser.uid)
         .get();
       
       let myChildIds = studentsSnapshot.docs.map(doc => doc.id);
 
-      // teacherUid 필드가 없는 경우 대비: classId로도 탐색 (구버전 대응)
+      // teacherUid 필드가 없는 구버전 데이터 대응 (classId 폴백)
       if (myChildIds.length === 0) {
         const classId = userData?.classId;
         if (classId) {
@@ -113,12 +113,20 @@ export const getObservations = async (req: Request, res: Response, next: NextFun
         }
       }
       
-      // 담당 원아가 있는 경우 원아 목록으로도 필터링
       if (myChildIds.length > 0) {
-        if (!filters.childId) {
-          filters.childId = myChildIds; 
+        // 특정 아동 조회 요청 시, 내 담당 원아인지 검증
+        if (filters.childId) {
+          const requestedId = filters.childId as string;
+          if (!myChildIds.includes(requestedId)) {
+             return res.status(StatusCodes.FORBIDDEN).json({ 
+               success: false, 
+               error: '담당 원아의 기록만 조회할 수 있습니다.' 
+             });
+          }
+        } else {
+          // 전체 조회 시 담당 원아들 데이터로 범위 제한
+          filters.childId = myChildIds;
         }
-        // 특정 childId가 이미 있다면, Service의 AND 로직에 의해 자동으로 필터링됨
       }
     }
 
@@ -150,12 +158,11 @@ export const transcribeSTT = async (req: Request, res: Response, next: NextFunct
     }
 
     const formData = new FormData();
-    // TS 에러 해결: Node.js Buffer를 브라우저 표준 Uint8Array로 감쌉니다.
     const blob = new Blob([new Uint8Array(req.file.buffer)], { type: req.file.mimetype || 'audio/webm' });
 
     formData.append('file', blob, 'audio.webm');
     formData.append('model', 'whisper-large-v3');
-    formData.append('language', 'ko'); // 한국어
+    formData.append('language', 'ko');
     formData.append('response_format', 'json');
 
     const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
