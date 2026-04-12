@@ -86,17 +86,7 @@ export const saveObservation = async (data: ObservationRecord): Promise<string> 
 export const getObservations = async (filters: { childId?: string | string[]; category?: string; date?: string; teacherId?: string }) => {
   let query: any = db.collection('observations');
 
-  if (filters.childId) {
-    if (Array.isArray(filters.childId) && filters.childId.length > 0) {
-      query = query.where('childId', 'in', filters.childId);
-    } else if (typeof filters.childId === 'string' && filters.childId.trim() !== "") {
-      query = query.where('childId', '==', filters.childId.trim());
-    }
-  } else if (filters.teacherId && filters.teacherId.trim() !== "") {
-    // childId가 없을 때만 teacherId 필터 적용 (교사 본인 기록만 조회)
-    query = query.where('teacherId', '==', filters.teacherId.trim());
-  }
-  
+  // 필터링 적용 (Firestore 단일 필드 쿼리들)
   if (filters.category && filters.category.trim() !== "") {
     query = query.where('category', '==', filters.category.trim());
   }
@@ -105,13 +95,32 @@ export const getObservations = async (filters: { childId?: string | string[]; ca
   }
 
   const snapshot = await query.get();
-
-  const results = snapshot.docs.map((doc: any) => ({
+  
+  // 메모리 상에서 필터링 (복잡한 OR 조건 및 데이터 유연성 대응)
+  let results = snapshot.docs.map((doc: any) => ({
     id: doc.id,
     ...doc.data()
   }));
 
-  // 수동 정렬
+  // 권한/매핑 필터링 (메모리 필터링)
+  results = results.filter((obs: any) => {
+    // 1. 특정 아동(childId)으로 필터링 요청이 온 경우
+    if (filters.childId) {
+      if (Array.isArray(filters.childId)) {
+        return filters.childId.includes(obs.childId);
+      }
+      return obs.childId === filters.childId.trim();
+    }
+    
+    // 2. 아동 필터가 없는 경우: 본인 기록이거나, 작성자 정보가 없는 구버전 데이터만 반환
+    if (filters.teacherId) {
+      return !obs.teacherId || obs.teacherId === filters.teacherId.trim();
+    }
+
+    return true;
+  });
+
+  // 수동 정렬 (최신순)
   return results.sort((a: any, b: any) => 
     new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
   );
