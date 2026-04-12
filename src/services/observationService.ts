@@ -108,17 +108,19 @@ export const getObservations = async (filters: { childId?: string | string[]; ca
 
   // 권한/매핑 필터링 (메모리 필터링)
   results = results.filter((obs: any) => {
-    // 1. 특정 아동(childId)으로 필터링 요청이 온 경우
+    // 1. 특정 아동(childId) 필터링 (요청이 온 경우 반드시 일치해야 함)
     if (filters.childId) {
-      if (Array.isArray(filters.childId)) {
-        return filters.childId.includes(obs.childId);
-      }
-      return obs.childId === filters.childId.trim();
+      const matchChild = Array.isArray(filters.childId)
+        ? filters.childId.includes(obs.childId)
+        : obs.childId === filters.childId.trim();
+      
+      if (!matchChild) return false;
     }
     
-    // 2. 아동 필터가 없는 경우: 본인 기록이거나, 작성자 정보가 없는 구버전 데이터만 반환
+    // 2. 작성자(teacherId) 필터링 (요청이 온 경우 반드시 일치해야 함)
+    // - 작성자 정보가 없는 구버전 데이터나 다른 교사의 데이터는 제외됨
     if (filters.teacherId) {
-      return !obs.teacherId || obs.teacherId === filters.teacherId.trim();
+      if (obs.teacherId !== filters.teacherId.trim()) return false;
     }
 
     return true;
