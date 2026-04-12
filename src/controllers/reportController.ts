@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import * as reportService from '../services/reportService';
+import * as monthlyReportService from '../services/monthlyReportService';
 
 /**
  * @swagger
@@ -149,7 +150,7 @@ export const saveMonthlyReport = async (req: Request, res: Response) => {
     // 현재 접속한 교사 ID 추가
     data.teacherId = authUser.uid;
 
-    const id = await reportService.saveMonthlyReport(data);
+    const id = await monthlyReportService.saveMonthlyReport(data);
     res.status(200).json({
       success: true,
       id,
@@ -169,7 +170,7 @@ export const getMonthlyReports = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'childId가 필요합니다.' });
     }
 
-    let reports = await reportService.getMonthlyReportsByChild(childId as string);
+    let reports = await monthlyReportService.getMonthlyReportsByChild(childId as string);
 
     // 부모인 경우 전송된(isSent: true) 보고서만 필터링
     // authUser.role 정보가 없으면 DB에서 유저 정보를 가져와야 함 (여기서는 auth 미들웨어에서 넣어준다고 가정)
@@ -186,7 +187,7 @@ export const getMonthlyReports = async (req: Request, res: Response) => {
 export const deleteMonthlyReport = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    await reportService.deleteMonthlyReport(id as string);
+    await monthlyReportService.deleteMonthlyReport(id as string);
     res.status(200).json({ success: true, message: '종합 평가가 삭제되었습니다.' });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
