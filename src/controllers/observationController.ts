@@ -89,34 +89,37 @@ export const getObservations = async (req: Request, res: Response, next: NextFun
           });
         }
       } else {
-        // 교사인 경우: 자신의 반 원아 목록을 먼저 조회하여 childId로 필터링
-        // - teacherId 기반 필터링은 구버전 데이터 누락(teacherId 미저장) 이슈가 있어 사용하지 않음
-        const studentsSnapshot = await db.collection('students')
-          .where('teacherUid', '==', authUser.uid)
-          .get();
-        
-        let myChildIds = studentsSnapshot.docs.map(doc => doc.id);
-
-        // teacherUid 필드가 없는 경우 대비: classId로도 탐색
-        if (myChildIds.length === 0) {
-          const userDoc2 = await db.collection('users').doc(authUser.uid).get();
-          const classId = userDoc2.data()?.classId;
-          if (classId) {
-            const byClass = await db.collection('students').where('classId', '==', classId).get();
-            myChildIds = byClass.docs.map(doc => doc.id);
-          }
-        }
-        
-        if (myChildIds.length > 0) {
-          filters.childId = myChildIds;
-        } else {
-          // 담당 원아가 없는 경우 본인 기록만 (안전 대비)
-          filters.teacherId = authUser.uid;
-        }
+        // 부모의 기본 필터: 자신의 모든 자녀들
+        filters.childId = myChildIds;
       }
     } else {
-      // 교사(또는 기타역할)인 경우: 본인이 작성한 기록만 필터링
+      // 교사(또는 기타역할)인 경우:
+      // 1. 본인이 작성한 기록만 필터링 (보관용/보안)
       filters.teacherId = authUser.uid;
+
+      // 2. 자신이 관리하는 원아 목록을 가져와서 필터링 (안전 대비)
+      const studentsSnapshot = await db.collection('students')
+        .where('teacherUid', '==', authUser.uid)
+        .get();
+      
+      let myChildIds = studentsSnapshot.docs.map(doc => doc.id);
+
+      // teacherUid 필드가 없는 경우 대비: classId로도 탐색 (구버전 대응)
+      if (myChildIds.length === 0) {
+        const classId = userData?.classId;
+        if (classId) {
+          const byClass = await db.collection('students').where('classId', '==', classId).get();
+          myChildIds = byClass.docs.map(doc => doc.id);
+        }
+      }
+      
+      // 담당 원아가 있는 경우 원아 목록으로도 필터링
+      if (myChildIds.length > 0) {
+        if (!filters.childId) {
+          filters.childId = myChildIds; 
+        }
+        // 특정 childId가 이미 있다면, Service의 AND 로직에 의해 자동으로 필터링됨
+      }
     }
 
     const observations = await observationService.getObservations(filters);
