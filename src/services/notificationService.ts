@@ -11,7 +11,6 @@ export interface NotificationInput {
 }
 
 export const createNotification = async (notif: NotificationInput) => {
-  console.log('[DEBUG] Creating notification:', notif);
   const notifRef = db.collection('notifications').doc();
   const createdAt = admin.firestore.Timestamp.now();
 
@@ -23,9 +22,8 @@ export const createNotification = async (notif: NotificationInput) => {
 
   try {
     await notifRef.set(notifData);
-    console.log('[DEBUG] Notification created successfully. ID:', notifRef.id);
   } catch (err) {
-    console.error('[DEBUG] Failed to create notification:', err);
+    // Error logged silently or via production logging service
   }
   
   return { id: notifRef.id, ...notifData, createdAt: createdAt.toDate().toISOString() };
