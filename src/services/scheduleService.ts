@@ -1,4 +1,5 @@
 import { db } from '../lib/firebase';
+import { createNotification } from './notificationService';
 
 export interface ScheduleInput {
   authorUid: string;
@@ -18,6 +19,37 @@ export const createSchedule = async (data: ScheduleInput) => {
     ...data,
     createdAt,
   });
+
+  // --- 알림 로직 시작 ---
+  try {
+    const senderName = '선생님';
+
+    // 해당 교사의 모든 아이들의 학부모에게 알림
+    const studentsSnapshot = await db.collection('students')
+      .where('teacherUid', '==', data.authorUid)
+      .get();
+    
+    const parentUids = new Set<string>();
+    studentsSnapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.parentUid) parentUids.add(data.parentUid);
+    });
+
+    for (const parentUid of parentUids) {
+      await createNotification({
+        recipientUid: parentUid,
+        title: '새로운 우리반 일정이 추가되었습니다',
+        content: `${data.title} (${data.date})`,
+        type: 'schedule',
+        link: '/parent/schedule',
+        senderName,
+      });
+    }
+  } catch (notifError) {
+    console.error('Notification trigger error in createSchedule:', notifError);
+  }
+  // --- 알림 로직 끝 ---
+
   return { id: docRef.id, ...data, createdAt: createdAt.toISOString() };
 };
 

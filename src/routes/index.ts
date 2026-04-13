@@ -6,6 +6,8 @@ import studentRouter from './student';
 import noticeRouter from './notice';
 import scheduleRouter from './schedule';
 import observationRouter from './observation';
+import notificationRouter from './notificationRoutes';
+import { verifyToken } from '../middlewares/auth';
 
 const router: Router = express.Router();
 
@@ -22,5 +24,6 @@ router.use('/students', studentRouter);
 router.use('/notices', noticeRouter);
 router.use('/schedules', scheduleRouter);
 router.use('/observations', observationRouter);
+router.use('/notifications', verifyToken, notificationRouter);
 
 export default router;

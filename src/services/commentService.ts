@@ -1,5 +1,6 @@
 import { db } from '../lib/firebase';
 import admin from 'firebase-admin';
+import { createNotification } from './notificationService';
 
 export interface CommentInput {
   noticeId: string;
@@ -18,12 +19,16 @@ export const addComment = async (comment: CommentInput) => {
     createdAt: admin.firestore.Timestamp.fromDate(createdAt),
   };
 
+  let noticeData: any = null;
+
   // Transaction to add comment and increment count
   await db.runTransaction(async (transaction) => {
     const noticeRef = db.collection('notices').doc(comment.noticeId);
     const noticeDoc = await transaction.get(noticeRef);
     
-    if (!noticeDoc.exists) {
+    noticeData = noticeDoc.data();
+    
+    if (!noticeDoc.exists || !noticeData) {
       throw new Error('Notice not found');
     }
 
@@ -32,6 +37,45 @@ export const addComment = async (comment: CommentInput) => {
       commentCount: admin.firestore.FieldValue.increment(1)
     });
   });
+
+  // --- 알림 로직 시작 (트랜잭션 외부에서 실행) ---
+  try {
+    let recipientUid = '';
+    let title = '';
+    const content = `${comment.authorName}님이 댓글을 남겼습니다: "${comment.content.substring(0, 20)}${comment.content.length > 20 ? '...' : ''}"`;
+    let link = '';
+
+    if (comment.authorRole === 'parent') {
+      // 부모가 댓글을 쓴 경우 -> 알림장 작성자(교사)에게 알림
+      recipientUid = noticeData?.authorUid;
+      title = '알림장에 새로운 댓글이 달렸습니다';
+      link = `/teacher/notice/detail/${comment.noticeId}`;
+    } else {
+      // 교사가 댓글을 쓴 경우 -> 해당 아이의 부모에게 알림
+      if (noticeData?.type === 'individual' && noticeData?.childId) {
+        const studentDoc = await db.collection('students').doc(noticeData.childId).get();
+        if (studentDoc.exists) {
+          recipientUid = studentDoc.data()?.parentUid;
+          title = '아이의 알림장에 선생님이 댓글을 남겼습니다';
+          link = `/parent/notices/${comment.noticeId}`;
+        }
+      }
+    }
+
+    if (recipientUid && recipientUid !== comment.authorUid) {
+      await createNotification({
+        recipientUid,
+        title,
+        content,
+        type: 'comment',
+        link,
+        senderName: comment.authorName,
+      });
+    }
+  } catch (notifError) {
+    console.error('Notification trigger error in addComment:', notifError);
+  }
+  // --- 알림 로직 끝 ---
 
   return { 
     id: commentRef.id, 

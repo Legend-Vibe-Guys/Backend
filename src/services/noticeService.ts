@@ -1,4 +1,5 @@
 import { db } from '../lib/firebase';
+import { createNotification } from './notificationService';
 
 export interface NoticeInput {
   type: 'common' | 'individual';
@@ -24,6 +25,55 @@ export const createNotice = async (notice: NoticeInput) => {
     createdAt,
   };
   await docRef.set(noticeData);
+
+  // --- 알림 로직 시작 ---
+  try {
+    const senderName = '선생님'; // TODO: 알림장 서비스 내에서 작성자 이름을 가져올 수 있다면 사용
+
+    if (notice.type === 'individual' && notice.childId) {
+      // 개별 알림장 -> 해당 아이의 학부모에게 알림
+      const studentDoc = await db.collection('students').doc(notice.childId).get();
+      if (studentDoc.exists) {
+        const studentData = studentDoc.data();
+        if (studentData?.parentUid) {
+          await createNotification({
+            recipientUid: studentData.parentUid,
+            title: '새로운 개별 알림장이 도착했습니다',
+            content: `${notice.title}`,
+            type: 'notice',
+            link: `/parent/notices/${docRef.id}`,
+            senderName,
+          });
+        }
+      }
+    } else if (notice.type === 'common') {
+      // 공통 알림장 -> 해당 교사의 모든 아이들의 학부모에게 알림
+      const studentsSnapshot = await db.collection('students')
+        .where('teacherUid', '==', notice.authorUid) // teacherUid 기준 필터링 (authController에서 보정됨)
+        .get();
+      
+      const parentUids = new Set<string>();
+      studentsSnapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.parentUid) parentUids.add(data.parentUid);
+      });
+
+      for (const parentUid of parentUids) {
+        await createNotification({
+          recipientUid: parentUid,
+          title: '우리반 공통 알림장이 새로 올라왔습니다',
+          content: `${notice.title}`,
+          type: 'notice',
+          link: `/notices/${docRef.id}`,
+          senderName,
+        });
+      }
+    }
+  } catch (notifError) {
+    console.error('Notification trigger error in createNotice:', notifError);
+  }
+  // --- 알림 로직 끝 ---
+
   return { id: docRef.id, ...noticeData, createdAt: createdAt.toISOString() };
 };
 
