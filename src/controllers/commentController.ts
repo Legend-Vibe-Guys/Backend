@@ -57,7 +57,7 @@ import { StatusCodes } from 'http-status-codes';
 export const getComments = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { noticeId } = req.params;
-    const comments = await commentService.getCommentsByNotice(noticeId);
+    const comments = await commentService.getCommentsByNotice(noticeId as string);
     res.status(StatusCodes.OK).json({ success: true, comments });
   } catch (error) {
     next(error);
@@ -92,14 +92,14 @@ export const createComment = async (req: Request, res: Response, next: NextFunct
     if (userData.role === 'parent') {
       const children = await studentService.getStudentsByParent(authUser.uid);
       if (children.length > 0) {
-        authorDisplayName = children[0].name;
+        authorDisplayName = (children[0] as any).name;
       }
     } else if (userData.role === 'teacher') {
       authorDisplayName = userData.name;
     }
 
     const commentData: commentService.CommentInput = {
-      noticeId,
+      noticeId: noticeId as string,
       authorUid: authUser.uid,
       authorName: authorDisplayName,
       authorRole: userData.role as 'teacher' | 'parent',
@@ -139,7 +139,7 @@ export const createComment = async (req: Request, res: Response, next: NextFunct
 export const deleteComment = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { noticeId, commentId } = req.params;
-    await commentService.deleteComment(commentId, noticeId);
+    await commentService.deleteComment(commentId as string, noticeId as string);
     res.status(StatusCodes.OK).json({ success: true, message: '댓글이 삭제되었습니다.' });
   } catch (error) {
     next(error);
@@ -186,7 +186,7 @@ export const updateComment = async (req: Request, res: Response, next: NextFunct
       });
     }
 
-    const updated = await commentService.updateComment(commentId, content.trim());
+    const updated = await commentService.updateComment(commentId as string, content.trim());
     res.status(StatusCodes.OK).json({ success: true, comment: updated });
   } catch (error) {
     next(error);
