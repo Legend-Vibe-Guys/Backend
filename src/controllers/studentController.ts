@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import * as studentService from '../services/studentService';
 import { db } from '../lib/firebase';
 import { StatusCodes } from 'http-status-codes';
+import { createNotification } from '../services/notificationService';
 
 /**
  * @swagger
@@ -205,6 +206,34 @@ export const updateStudent = async (req: Request, res: Response, next: NextFunct
     if (className !== undefined) updateData.className = className;
 
     await studentService.updateStudent(id, updateData);
+
+    // --- 알림 로직 시작 ---
+    try {
+      const authUser = (req as any).user;
+      const userDoc = await db.collection('users').doc(authUser.uid).get();
+      const userData = userDoc.data();
+
+      if (userData?.role === 'parent' && (allergies !== undefined || medicationRequest !== undefined)) {
+        const studentDoc = await db.collection('students').doc(id).get();
+        const studentData = studentDoc.data();
+        const teacherUid = studentData?.teacherUid;
+
+        if (teacherUid) {
+          await createNotification({
+            recipientUid: teacherUid,
+            title: '유아 건강 정보가 업데이트되었습니다',
+            content: `${studentData?.kidsName || '아이'}의 건강 정보(알레르기/투약)가 수정되었습니다.`,
+            type: 'health_update',
+            link: `/teacher/students/${id}`,
+            senderName: userData.name || '학부모',
+          });
+        }
+      }
+    } catch (notifError) {
+      console.error('Notification trigger error in updateStudent:', notifError);
+    }
+    // --- 알림 로직 끝 ---
+
     res.status(StatusCodes.OK).json({ success: true, message: '원아 정보가 수정되었습니다.' });
   } catch (error) {
     next(error);

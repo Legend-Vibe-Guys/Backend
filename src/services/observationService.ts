@@ -1,5 +1,6 @@
 import { observationModel } from '../lib/gemini';
 import { db } from '../lib/firebase';
+import { createNotification } from './notificationService';
 
 export interface ObservationInput {
   childName: string;
@@ -84,6 +85,28 @@ export const saveObservation = async (data: ObservationRecord): Promise<string> 
     ...data,
     createdAt: kstDate.toISOString().replace('Z', '+09:00')
   });
+
+  // --- 알림 로직 시작 ---
+  try {
+    const studentDoc = await db.collection('students').doc(data.childId).get();
+    if (studentDoc.exists) {
+      const studentData = studentDoc.data();
+      if (studentData?.parentUid) {
+        await createNotification({
+          recipientUid: studentData.parentUid,
+          title: '우리 아이의 새로운 성장 기록이 올라왔습니다',
+          content: `${data.childName} 유아의 관찰 기록을 확인해보세요.`,
+          type: 'observation',
+          link: '/parent/observation', // 성장기록 목록 또는 상세 페이지로 이동
+          senderName: '선생님',
+        });
+      }
+    }
+  } catch (notifError) {
+    console.error('Notification trigger error in saveObservation:', notifError);
+  }
+  // --- 알림 로직 끝 ---
+
   return docRef.id;
 };
 

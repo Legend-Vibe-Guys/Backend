@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../lib/firebase';
 import { StatusCodes } from 'http-status-codes';
+import { createNotification } from '../services/notificationService';
 
 /**
  * @swagger
@@ -202,13 +203,35 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
 
       if (!studentsSnapshot.empty) {
         const batch = db.batch();
+        const parentUids = new Set<string>();
+
         studentsSnapshot.docs.forEach(doc => {
+          const sData = doc.data();
+          if (sData.parentUid) parentUids.add(sData.parentUid);
+
           batch.update(doc.ref, { 
             className: className || '',
             teacherUid: authUser.uid // UID 주입 (데이터 보정)
           });
         });
         await batch.commit();
+
+        // --- 알림 로직 시작 ---
+        try {
+          for (const parentUid of parentUids) {
+            await createNotification({
+              recipientUid: parentUid,
+              title: '우리반 이름이 변경되었습니다',
+              content: `새로운 반 이름: "${className || '이름 없음'}"`,
+              type: 'class_update',
+              link: '/parent',
+              senderName: userData?.name || '선생님',
+            });
+          }
+        } catch (notifError) {
+          console.error('Notification trigger error in updateProfile:', notifError);
+        }
+        // --- 알림 로직 끝 ---
       }
     }
 
