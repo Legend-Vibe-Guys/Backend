@@ -12,16 +12,19 @@ export interface NoticeInput {
   photoUrls?: string[];
   cushionLevel?: string;
   createdAt?: string;
+  commentCount?: number;
 }
 
 export const createNotice = async (notice: NoticeInput) => {
   const docRef = db.collection('notices').doc();
   const createdAt = new Date();
-  await docRef.set({
+  const noticeData = {
     ...notice,
+    commentCount: 0,
     createdAt,
-  });
-  return { id: docRef.id, ...notice, createdAt: createdAt.toISOString() };
+  };
+  await docRef.set(noticeData);
+  return { id: docRef.id, ...noticeData, createdAt: createdAt.toISOString() };
 };
 
 export const getNoticesByAuthor = async (authorUid: string) => {
